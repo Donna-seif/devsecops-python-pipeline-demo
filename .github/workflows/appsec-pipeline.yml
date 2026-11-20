@@ -1,0 +1,43 @@
+name: DevSecOps Security Pipeline
+
+# 1. THE TRIGGER: When does this run?
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# 2. PERMISSIONS: Least-privilege access for the runner
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security-scan:
+    name: SAST and Dependency Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step A: Download your code onto the temporary GitHub runner machine
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      # Step B: Run Trivy (SCA - Software Composition Analysis)
+      - name: Run Trivy vulnerability scanner in fs mode
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'library'
+          severity: 'CRITICAL,HIGH'
+
+      # Step C: Run Semgrep (SAST - Static Application Security Testing)
+      - name: Run Semgrep SAST Scan
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/python
+            p/flask
