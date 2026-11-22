@@ -1,4 +1,5 @@
 from flask import Flask, request
+from markupsafe import escape
 
 app = Flask(__name__)
 
@@ -8,8 +9,8 @@ def home():
 
 @app.route("/greet")
 def greet():
-    # Intentionally insecure pattern (Reflected XSS risk if rendered as raw HTML)
-    name = request.args.get("name", "Guest")
+    # Safe: escape() converts characters like <, >, and & into safe HTML entities
+    name = escape(request.args.get("name", "Guest"))
     return f"<h1>Hello, {name}!</h1>"
 
 if __name__ == "__main__":
