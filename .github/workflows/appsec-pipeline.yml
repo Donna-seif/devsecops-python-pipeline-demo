@@ -1,43 +1,38 @@
-name: DevSecOps Security Pipeline
+name: AppSec CI/CD Security Gate
 
-# 1. THE TRIGGER: When does this run?
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
 
-# 2. PERMISSIONS: Least-privilege access for the runner
 permissions:
   contents: read
   security-events: write
 
 jobs:
-  security-scan:
-    name: SAST and Dependency Scan
+  security-gate:
+    name: SAST & Dependency Scan
     runs-on: ubuntu-latest
 
     steps:
-      # Step A: Download your code onto the temporary GitHub runner machine
-      - name: Checkout repository code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step B: Run Trivy (SCA - Software Composition Analysis)
-      - name: Run Trivy vulnerability scanner in fs mode
-        uses: aquasecurity/trivy-action@0.28.0
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'library'
-          severity: 'CRITICAL,HIGH'
+          python-version: "3.11"
 
-      # Step C: Run Semgrep (SAST - Static Application Security Testing)
-      - name: Run Semgrep SAST Scan
-        uses: semgrep/semgrep-action@v1
-        with:
-          config: >-
-            p/python
-            p/flask
+      # Gate 1: Software Composition Analysis (SCA) - Blocks outdated Flask==2.0.1
+      - name: Run pip-audit (Dependency Vulnerability Scan)
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+          pip-audit -r requirements.txt
+
+      # Gate 2: Static Application Security Testing (SAST) - Blocks Reflected XSS in app.py
+      - name: Run Semgrep CLI (SAST Code Scan)
+        run: |
+          pip install semgrep
+          semgrep scan --config p/python --config p/flask --error
